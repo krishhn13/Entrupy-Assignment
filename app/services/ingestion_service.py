@@ -1,27 +1,44 @@
 import json
 from pathlib import Path
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models.product import Product
 from app.models.price_history import PriceHistory
-from app.models.notification_event import NoticationEvent
+from app.models.notification_event import NotificationEvent
+
 
 def ingest_file(file_path: Path, db: Session, source: str):
+
+    # Load snapshot JSON
     with open(file_path, "r", encoding="utf-8") as f:
-        item = json.load(f)  # single product snapshot
+        item = json.load(f)
 
     external_id = item.get("product_id")
     price = item.get("price")
 
+    if external_id is None or price is None:
+        return
+
+    # Extract snapshot index from filename
+    # Example: 1stdibs_chanel_belts_07.json → 7
+    try:
+        snapshot_index = int(file_path.stem.split("_")[-1])
+    except Exception:
+        snapshot_index = 1
+
+    # Convert snapshot index into timeline timestamp
+    recorded_at = datetime.utcnow() - timedelta(days=(30 - snapshot_index))
+
     existing_product = (
         db.query(Product)
         .filter(Product.external_id == external_id)
-        .filter(Product.source == source)
         .first()
     )
 
+    # CASE 1: New product
     if not existing_product:
+
         new_product = Product(
             external_id=external_id,
             source=source,
@@ -41,27 +58,38 @@ def ingest_file(file_path: Path, db: Session, source: str):
             product_id=new_product.id,
             price=price,
             source=source,
+            recorded_at=recorded_at,
         )
 
         db.add(price_record)
 
+    # CASE 2: Existing product snapshot update
     else:
-            if  existing_product.latest_price != price :
-                 old_price = existing_product.latest_price
-                 existing_product.latest_price = price
-                 existing_product.updated_at = datetime.utcnow()
 
-                 price_record = PriceHistory(
-                      product_id = existing_product.id,
-                      price = price,
-                      source = source
-                 )
-                 db.add(price_record)
-                 
-                 notification_event = NoticationEvent(
-                      product_id = existing_product.id,
-                      old_price = old_price,
-                      new_price = price,
-                 )
-                 db.add(notification_event)
+        old_price = existing_product.latest_price
+
+        # Always store snapshot as history entry
+        price_record = PriceHistory(
+            product_id=existing_product.id,
+            price=price,
+            source=source,
+            recorded_at=recorded_at,
+        )
+
+        db.add(price_record)
+
+        # Only trigger notification if price changed
+        if old_price != price:
+
+            existing_product.latest_price = price
+            existing_product.updated_at = datetime.utcnow()
+
+            notification_event = NotificationEvent(
+                product_id=existing_product.id,
+                old_price=old_price,
+                new_price=price,
+            )
+
+            db.add(notification_event)
+
     db.commit()

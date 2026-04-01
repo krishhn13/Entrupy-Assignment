@@ -1,6 +1,31 @@
 from sqlalchemy.orm import Session
 from app.models.product import Product
 from app.models.price_history import PriceHistory
+
+
+def get_products_count(
+    db,
+    source=None,
+    category=None,
+    min_price=None,
+    max_price=None,
+):
+    query = db.query(Product)
+
+    if source:
+        query = query.filter(Product.source == source)
+
+    if category:
+        query = query.filter(Product.category == category)
+
+    if min_price:
+        query = query.filter(Product.latest_price >= min_price)
+
+    if max_price:
+        query = query.filter(Product.latest_price <= max_price)
+
+    return query.count()
+
 def get_products(
                 db : Session,
                 source : str | None= None,

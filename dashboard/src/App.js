@@ -25,29 +25,53 @@ function App() {
   const [summary, setSummary] = useState(null);
   const [products, setProducts] = useState([]);
   const [history, setHistory] = useState(null);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  /*
-    Stable headers object
-  */
   const headers = useMemo(() => ({
     "x-api-key": process.env.REACT_APP_API_KEY
   }), []);
 
+
   /*
-    Initial dashboard load
+    Load analytics summary once
   */
   useEffect(() => {
 
     axios
       .get("http://127.0.0.1:8000/analytics/summary", { headers })
-      .then(res => setSummary(res.data));
-
-    axios
-      .get("http://127.0.0.1:8000/products?page=1&limit=20", { headers })
-      .then(res => setProducts(res.data.data));
+      .then(res => setSummary(res.data))
+      .catch(console.error);
 
   }, [headers]);
+
+
+  /*
+    Load paginated products whenever page changes
+  */
+  useEffect(() => {
+
+    axios
+      .get(
+        `http://127.0.0.1:8000/products?page=${page}&limit=20`,
+        { headers }
+      )
+      .then(res => {
+
+        setProducts(res.data.data);
+
+        const total = res.data.total;
+        const limit = res.data.limit;
+
+        setTotalPages(Math.ceil(total / limit));
+
+      })
+      .catch(console.error);
+
+  }, [page, headers]);
 
 
   /*
@@ -62,8 +86,8 @@ function App() {
         `http://127.0.0.1:8000/products/${productId}/history`,
         { headers }
       )
-      .then(res => setHistory(res.data.history));
-
+      .then(res => setHistory(res.data.history))
+      .catch(console.error);
   };
 
 
@@ -72,17 +96,11 @@ function App() {
   */
   const getPriceTrend = (product) => {
 
-    if (!product.previous_price) {
-      return "—";
-    }
+    if (!product.previous_price) return "—";
 
-    if (product.latest_price > product.previous_price) {
-      return "▲";
-    }
+    if (product.latest_price > product.previous_price) return "▲";
 
-    if (product.latest_price < product.previous_price) {
-      return "▼";
-    }
+    if (product.latest_price < product.previous_price) return "▼";
 
     return "—";
   };
@@ -100,14 +118,24 @@ function App() {
     Chart formatting
   */
   const chartData = history ? {
-    labels: history.map(h =>
-      new Date(h.recorded_at).toLocaleDateString()
-    ),
+    labels: history
+      .sort(
+        (a, b) =>
+          new Date(a.recorded_at) -
+          new Date(b.recorded_at)
+      )
+      .map(h =>
+        new Date(h.recorded_at).toLocaleDateString()
+      ),
     datasets: [
       {
         label: "Price Over Time",
         data: history.map(h => h.price),
-        tension: 0.3
+        borderColor: "#2563eb",
+        backgroundColor: "rgba(37, 99, 235, 0.2)",
+        tension: 0.3,
+        fill: true,
+        pointRadius: 4
       }
     ]
   } : null;
@@ -134,12 +162,16 @@ function App() {
 
         <div style={cardStyle}>
           <h3>Sources Covered</h3>
-          <p>{Object.keys(summary.products_by_source).length}</p>
+          <p>
+            {Object.keys(summary.products_by_source).length}
+          </p>
         </div>
 
         <div style={cardStyle}>
           <h3>Categories</h3>
-          <p>{Object.keys(summary.avg_price_by_category).length}</p>
+          <p>
+            {Object.keys(summary.avg_price_by_category).length}
+          </p>
         </div>
 
       </div>
@@ -175,9 +207,14 @@ function App() {
       </ul>
 
 
+
+
+
       {/* PRODUCT TABLE */}
 
-      <h2 style={{ marginTop: 40 }}>Product List</h2>
+      <h2 style={{ marginTop: 40 }}>
+        Product List
+      </h2>
 
       <table
         border="1"
@@ -218,8 +255,8 @@ function App() {
                   getPriceTrend(p) === "▲"
                     ? "green"
                     : getPriceTrend(p) === "▼"
-                    ? "red"
-                    : "gray"
+                      ? "red"
+                      : "gray"
               }}>
                 {getPriceTrend(p)}
               </td>
@@ -227,7 +264,11 @@ function App() {
               <td>
                 <button
                   onClick={() =>
-                    loadHistory(p.id, p.brand, p.model)
+                    loadHistory(
+                      p.id,
+                      p.brand,
+                      p.model
+                    )
                   }
                 >
                   View History
@@ -242,7 +283,29 @@ function App() {
 
       </table>
 
+      {/* PAGINATION CONTROLS */}
 
+      <div style={{ marginTop: 20 }}>
+
+        <button
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+        >
+          Prev
+        </button>
+
+        <span style={{ margin: "0 15px" }}>
+          Page {page} of {totalPages}
+        </span>
+
+        <button
+          disabled={page >= totalPages}
+          onClick={() => setPage(page + 1)}
+        >
+          Next
+        </button>
+
+      </div>
       {/* HISTORY CHART */}
 
       {chartData && (
@@ -253,7 +316,18 @@ function App() {
             Price History: {selectedProduct}
           </h2>
 
-          <Line data={chartData} />
+          <Line
+            data={chartData}
+            options={{
+              responsive: true,
+              plugins: {
+                legend: { display: true }
+              },
+              scales: {
+                y: { beginAtZero: false }
+              }
+            }}
+          />
 
         </div>
 
@@ -274,7 +348,8 @@ const cardStyle = {
   border: "1px solid #ddd",
   minWidth: "180px",
   textAlign: "center",
-  boxShadow: "0px 2px 6px rgba(0,0,0,0.05)"
+  boxShadow:
+    "0px 2px 6px rgba(0,0,0,0.05)"
 };
 
 

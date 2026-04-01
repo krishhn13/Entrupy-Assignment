@@ -238,6 +238,13 @@ Chosen for:
 * performance
 * type-safe request validation
 
+### Some Screenshots
+![Dynamic Graph denoting history of a product](image.png)
+
+![Dashboard](image-1.png)
+
+![SwaggerUI to test the backend APIs](image-2.png)
+
 ### Event-driven notifications
 
 Webhook delivery uses a persistent event table to ensure failures do not block ingestion and events are never lost.
