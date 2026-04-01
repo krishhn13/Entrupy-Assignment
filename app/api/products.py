@@ -16,17 +16,23 @@ def list_products(
         category : str | None = Query(default=None),
         min_price : float | None = Query(default=None),
         max_price : float | None = Query(default=None),
-        db: Session = Depends(get_db)
+        page: int = Query(default=1),
+        limit: int = Query(default=20),
+        db: Session = Depends(get_db),
 ):
         products = get_products(
                 db,
                 source=source,
                 category=category,
                 min_price=min_price,
-                max_price=max_price
+                max_price=max_price,
+                page = page,
+                limit=limit,
         )
 
         return {
+                "page":page,
+                "limit":limit,
                 "count" : len(products),
                 "data" : products
         }

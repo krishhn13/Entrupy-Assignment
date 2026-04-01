@@ -7,6 +7,8 @@ def get_products(
                 category : str | None=None,
                 min_price : float | None=None,
                 max_price : float | None=None,
+                page: int = 1,
+                limit: int = 20,
 ):
         query = db.query(Product)
         if source :
@@ -20,8 +22,9 @@ def get_products(
         
         if max_price is not None:
                 query = query.filter(Product.latest_price<=max_price)
-
-        return query.all()
+                
+        offset = (page - 1) * limit
+        return query.offset(offset).limit(limit).all()
 
 def get_product_by_id(db: Session, product_id: str):
         return db.query(Product).filter(
