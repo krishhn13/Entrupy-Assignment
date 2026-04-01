@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
-from app.services.product_service import get_products, get_product_by_id
+from app.services.product_service import get_products, get_product_by_id, get_price_history
+
 
 router = APIRouter(
         prefix="/products",
@@ -41,3 +42,24 @@ def product_detail(
                         "error" : "Product Not Found"
                 }
         return product
+
+@router.get("/{product_id}/history")
+def product_price_history(product_id: str, db : Session = Depends(get_db)):
+        history = get_price_history(db, product_id)
+        if not history:
+                return {
+                        "message":"No price history found for this product"
+                }
+        
+        return {
+                "product_id": product_id,
+                "entries": len(history),
+                "history": [
+                        {
+                                "price": h.price,
+                                "recorded_at": h.recorded_at,
+                                "source": h.source,
+                        }
+                        for h in history
+                ],
+        }

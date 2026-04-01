@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.product import Product
-
+from app.models.price_history import PriceHistory
 def get_products(
                 db : Session,
                 source : str | None= None,
@@ -27,3 +27,8 @@ def get_product_by_id(db: Session, product_id: str):
         return db.query(Product).filter(
                 Product.id == product_id
         ).first()
+
+def get_price_history(db, product_id:str):
+        return(
+                db.query(PriceHistory).filter(PriceHistory.product_id==product_id).order_by(PriceHistory.recorded_at.asc()).all()
+        )
