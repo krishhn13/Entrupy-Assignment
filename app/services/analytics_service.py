@@ -26,7 +26,7 @@ def avg_price_by_category(db: Session):
     )
 
     return {
-        category: float(avg_price)
+        category: round(float(avg_price), 2)
         for category, avg_price in results
         if category is not None
     }

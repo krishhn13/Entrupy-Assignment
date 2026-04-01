@@ -8,10 +8,22 @@ from app.api.meta import router as meta_router
 
 from app.core.auth import verify_api_key
 
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
         title="Price Monitoring System",
         dependencies=[Depends(verify_api_key)]
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
+        ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(refresh_router)
