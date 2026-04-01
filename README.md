@@ -245,6 +245,8 @@ Chosen for:
 
 ![SwaggerUI to test the backend APIs](image-2.png)
 
+![Analytics_dashboard](image-3.png)
+
 ### Event-driven notifications
 
 Webhook delivery uses a persistent event table to ensure failures do not block ingestion and events are never lost.
